@@ -1,37 +1,25 @@
 import { PrismaClient } from '@prisma/client'
+import { PrismaLibSql } from "@prisma/adapter-libsql";
 
-const prisma = new PrismaClient()
+const adapter = new PrismaLibSql({
+  url: process.env.DATABASE_URL || "file:./dev.db",
+});
+
+const prisma = new PrismaClient({ adapter })
 
 async function main() {
   // 1. Clean existing data to avoid duplication bugs
   await prisma.naskah.deleteMany({})
   await prisma.pengajuanDana.deleteMany({})
+  await prisma.user.deleteMany({})
   await prisma.editor.deleteMany({})
   await prisma.reviewer.deleteMany({})
   await prisma.pengaturanTarif.deleteMany({})
   await prisma.edisiJurnal.deleteMany({})
-  await prisma.user.deleteMany({})
 
   console.log('🧹 Database cleaned successfully.')
 
-  // 2. Seed Users (Pengelola & Kaprodi)
-  const admin = await prisma.user.create({
-    data: {
-      username: 'adminjurnal',
-      password: 'password123', // In production, this would be hashed
-      role: 'PENGELOLA',
-    },
-  })
-
-  const kaprodi = await prisma.user.create({
-    data: {
-      username: 'kaprodi',
-      password: 'password123',
-      role: 'KAPRODI',
-    },
-  })
-
-  // 3. Seed Pengaturan Tarif & Pajak Default
+  // 2. Seed Pengaturan Tarif & Pajak Default
   const tarif = await prisma.pengaturanTarif.create({
     data: {
       honorEditor: 250000,     // Rp 250.000 per naskah
@@ -40,7 +28,7 @@ async function main() {
     },
   })
 
-  // 4. Seed Edisi Jurnal (Aktif)
+  // 3. Seed Edisi Jurnal (Aktif)
   const edisiAktif = await prisma.edisiJurnal.create({
     data: {
       volume: 9,
@@ -51,7 +39,7 @@ async function main() {
     },
   })
 
-  // 5. Seed Data Master Editors
+  // 4. Seed Data Master Editors
   const editor1 = await prisma.editor.create({
     data: {
       nama: 'Dr. Rian Hadi, M.T.',
@@ -72,7 +60,7 @@ async function main() {
     },
   })
 
-  // 6. Seed Data Master Reviewers
+  // 5. Seed Data Master Reviewers
   const reviewer1 = await prisma.reviewer.create({
     data: {
       nama: 'Prof. Ahmad Subagja, Ph.D.',
@@ -93,8 +81,8 @@ async function main() {
     },
   })
 
-  // 7. Seed Naskah Jurnal & Ploting Data
-  const naskah1 = await prisma.naskah.create({
+  // 6. Seed Naskah Jurnal & Ploting Data
+  await prisma.naskah.create({
     data: {
       judul: 'Penerapan Arsitektur Microservices Menggunakan Next.js dan Prisma untuk Skalabilitas Aplikasi',
       author: 'Budi Darmawan',
@@ -104,7 +92,7 @@ async function main() {
     },
   })
 
-  const naskah2 = await prisma.naskah.create({
+  await prisma.naskah.create({
     data: {
       judul: 'Analisis Keamanan Autentikasi Berbasis JWT pada Platform E-Commerce Sistem Informasi Jurnal',
       author: 'Dewi Lestari',
@@ -114,7 +102,7 @@ async function main() {
     },
   })
 
-  const naskah3 = await prisma.naskah.create({
+  await prisma.naskah.create({
     data: {
       judul: 'Rancang Bangun Sistem Keuangan Internal Kampus Menggunakan Database Ringan SQLite',
       author: 'Fajar Nugraha',
@@ -124,13 +112,7 @@ async function main() {
     },
   })
 
-  // 8. Seed Default Pengajuan Dana (Awal Status PENDING)
-  // Math: 3 naskah dibagikan ke Editor & Reviewer.
-  // Editor 1 handle 2 naskah, Editor 2 handle 1 naskah. Total Honor Editor = (2*250rb) + (1*250rb) = 750,000
-  // Reviewer 1 handle 1 naskah, Reviewer 2 handle 2 naskah. Total Honor Reviewer = (1*300rb) + (2*300rb) = 900,000
-  // Total Bruto = 750,000 + 900,000 = 1,650,000
-  // Pajak 2.5% = 41,250
-  // Netto = 1,608,750
+  // 7. Seed Default Pengajuan Dana (Awal Status PENDING)
   const bruto = 1650000
   const pajakTotal = bruto * (2.5 / 100)
   const netto = bruto - pajakTotal
@@ -147,7 +129,68 @@ async function main() {
     },
   })
 
-  console.log('🌱 Database seeding completed successfully with perfect mock data!')
+  // 8. Seed User Accounts with Role-Based Access Control
+  // ADMIN account (full access)
+  await prisma.user.create({
+    data: {
+      username: 'admin',
+      password: 'admin123',
+      nama: 'Administrator Jurnal',
+      role: 'ADMIN',
+    },
+  })
+
+  // EDITOR account linked to Dr. Rian Hadi
+  await prisma.user.create({
+    data: {
+      username: 'editor.rian',
+      password: 'editor123',
+      nama: 'Dr. Rian Hadi, M.T.',
+      role: 'EDITOR',
+      editorId: editor1.id,
+    },
+  })
+
+  // REVIEWER account linked to Prof. Ahmad Subagja
+  await prisma.user.create({
+    data: {
+      username: 'reviewer.ahmad',
+      password: 'reviewer123',
+      nama: 'Prof. Ahmad Subagja, Ph.D.',
+      role: 'REVIEWER',
+      reviewerId: reviewer1.id,
+    },
+  })
+
+  // REVIEWER account linked to Eko Prasetyo
+  await prisma.user.create({
+    data: {
+      username: 'reviewer.eko',
+      password: 'reviewer123',
+      nama: 'Eko Prasetyo, M.Sc.',
+      role: 'REVIEWER',
+      reviewerId: reviewer2.id,
+    },
+  })
+
+  // KAPRODI account (Head of Department - digital signature authority)
+  await prisma.user.create({
+    data: {
+      username: 'kaprodi.if',
+      password: 'kaprodi123',
+      nama: 'Prof. Dr. Ir. Eddy Soeryanto Soegoto, M.T.',
+      role: 'KAPRODI',
+    },
+  })
+
+  console.log('🌱 Database seeding completed successfully with RBAC user accounts!')
+  console.log('')
+  console.log('📋 Login Credentials:')
+  console.log('   Admin:    admin / admin123')
+  console.log('   Editor:   editor.rian / editor123')
+  console.log('   Reviewer: reviewer.ahmad / reviewer123')
+  console.log('   Reviewer: reviewer.eko / reviewer123')
+  console.log('   Kaprodi:  kaprodi.if / kaprodi123')
 }
 
 main()
@@ -158,3 +201,5 @@ main()
   .finally(async () => {
     await prisma.$disconnect()
   })
+
+

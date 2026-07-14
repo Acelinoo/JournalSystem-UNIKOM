@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { loginAdmin } from "@/app/actions/auth";
+import { loginUser } from "@/app/actions/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -17,11 +17,18 @@ export default function LoginPage() {
     const formData = new FormData(e.currentTarget);
     
     try {
-      const result = await loginAdmin(formData);
+      const result = await loginUser(formData);
       
       if (result.success) {
-        // Force a hard refresh to ensure layout and middleware pick up the new cookie
-        window.location.href = "/";
+        if (result.role === "EDITOR") {
+          window.location.href = "/dashboard/editor";
+        } else if (result.role === "REVIEWER") {
+          window.location.href = "/dashboard/reviewer";
+        } else if (result.role === "KAPRODI") {
+          window.location.href = "/dashboard/kaprodi";
+        } else {
+          window.location.href = "/";
+        }
       } else {
         setError(result.message);
         setLoading(false);

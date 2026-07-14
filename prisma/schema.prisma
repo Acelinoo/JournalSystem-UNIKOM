@@ -35,6 +35,7 @@ model Editor {
   npwp         String?
   createdAt    DateTime @default(now())
   naskah       Naskah[]
+  user         User?
 }
 
 model Reviewer {
@@ -46,6 +47,7 @@ model Reviewer {
   npwp         String?
   createdAt    DateTime @default(now())
   naskah       Naskah[]
+  user         User?
 }
 
 model Naskah {
@@ -58,6 +60,7 @@ model Naskah {
   editor        Editor       @relation(fields: [editorId], references: [id])
   reviewerId    String
   reviewer      Reviewer     @relation(fields: [reviewerId], references: [id])
+  statusReview  String       @default("PENDING")
   createdAt     DateTime     @default(now())
 }
 
@@ -76,8 +79,13 @@ model PengajuanDana {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  username  String   @unique
-  password  String   
-  role      String   
+  id         String    @id @default(uuid())
+  username   String    @unique
+  password   String   
+  nama       String    @default("")
+  role       String    // "ADMIN" | "EDITOR" | "REVIEWER" | "KAPRODI"
+  editorId   String?   @unique
+  editor     Editor?   @relation(fields: [editorId], references: [id])
+  reviewerId String?   @unique
+  reviewer   Reviewer? @relation(fields: [reviewerId], references: [id])
 }

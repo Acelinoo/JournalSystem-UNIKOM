@@ -16,13 +16,27 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const cookieStore = await cookies();
-  const isAuthenticated = cookieStore.has("admin_session");
+  const token = cookieStore.get("admin_session")?.value;
+  
+  let role = "ADMIN";
+  let nama = "Pengelola";
+  
+  if (token) {
+    try {
+      const jsonString = Buffer.from(token, 'base64').toString('utf-8');
+      const user = JSON.parse(jsonString);
+      role = user.role || "ADMIN";
+      nama = user.nama || "Pengelola";
+    } catch (e) {
+      // Ignore
+    }
+  }
 
   return (
     <html lang="id">
       <body>
-        {isAuthenticated && <Sidebar />}
-        <main className={isAuthenticated ? "main-content" : "w-full min-h-screen"}>{children}</main>
+        {token && <Sidebar role={role} nama={nama} />}
+        <main className={token ? "main-content" : "w-full min-h-screen"}>{children}</main>
       </body>
     </html>
   );

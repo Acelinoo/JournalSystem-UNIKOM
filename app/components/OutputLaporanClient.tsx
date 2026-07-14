@@ -141,15 +141,43 @@ export default function OutputLaporanClient({ pengajuanList, edisiList, tarif }:
           ))}
         </select>
 
-        {selectedEdisi && tarif && (
-          <button
-            className="btn btn-primary"
-            onClick={handleGenerate}
-            disabled={isLoading || selectedEdisi.naskah.length === 0}
-          >
-            {isLoading ? "Memproses..." : "⚡ Generate Pengajuan Dana"}
-          </button>
-        )}
+        <div style={{ display: "flex", gap: 8 }}>
+          {selectedEdisi && tarif ? (
+            <button
+              className="btn btn-primary"
+              onClick={handleGenerate}
+              disabled={isLoading || selectedEdisi.naskah.length === 0}
+            >
+              {isLoading ? "Memproses..." : "⚡ Generate Pengajuan Dana"}
+            </button>
+          ) : (
+            <button
+              className="btn btn-primary"
+              style={{ opacity: 0.5, cursor: "not-allowed" }}
+              disabled
+              title="Membutuhkan Konfigurasi Edisi & Tarif"
+            >
+              ⚡ Generate Pengajuan Dana
+            </button>
+          )}
+
+          {(!selectedEdisi || !tarif || pengajuanList.length === 0) && (
+            <form action={async () => {
+              // Redirect to a specialized seed route or run an inline server action if we had one.
+              // For the demo, we will just alert the user to run the seed or we can call a server action here.
+              alert("Gunakan tombol ini untuk demo. Sedang membuat data dummy...");
+              await fetch('/api/mock-seed', { method: 'POST' }).catch(()=>window.location.reload());
+            }}>
+              <button
+                type="submit"
+                className="btn btn-secondary"
+                style={{ backgroundColor: "#fef3c7", color: "#d97706", borderColor: "#fde68a" }}
+              >
+                🛠️ Buat Dummy Pengajuan (Demo)
+              </button>
+            </form>
+          )}
+        </div>
       </div>
 
       {/* Tabs */}
