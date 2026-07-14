@@ -198,10 +198,37 @@ export default function OutputLaporanClient({ pengajuanList, edisiList, tarif }:
         <div className="animate-fade-in">
           {selectedPengajuan ? (
             <div>
-              <div className="no-print" style={{ marginBottom: 16, display: "flex", justifyContent: "flex-end" }}>
+              <div className="no-print" style={{ marginBottom: 16, display: "flex", justifyContent: "flex-end", gap: 10 }}>
                 <button className="btn btn-secondary" onClick={() => window.print()}>
                   🖨️ Cetak Surat
                 </button>
+                {selectedPengajuan.status === "DISETUJUI" && (
+                  <button
+                    className="btn btn-primary"
+                    style={{
+                      background: "linear-gradient(135deg, #065f46, #059669)",
+                      color: "#fff",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      fontWeight: 700,
+                      border: "none",
+                      boxShadow: "0 2px 8px rgba(5,150,105,0.3)",
+                    }}
+                    onClick={() => {
+                      const originalTitle = document.title;
+                      document.title = `Laporan_Resmi_Vol${selectedPengajuan.edisiJurnal.volume}_No${selectedPengajuan.edisiJurnal.nomor}_${selectedPengajuan.edisiJurnal.tahun}`;
+                      window.print();
+                      setTimeout(() => { document.title = originalTitle; }, 1000);
+                    }}
+                  >
+                    <svg style={{ width: 16, height: 16 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                        d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                    </svg>
+                    🖨️ Cetak PDF / Laporan Resmi
+                  </button>
+                )}
               </div>
               <div className="surat-container print-area">
                 <div className="surat-kop">
@@ -300,8 +327,53 @@ export default function OutputLaporanClient({ pengajuanList, edisiList, tarif }:
 
                 {/* Digital Signature Stamp */}
                 {selectedPengajuan.status === "DISETUJUI" && selectedPengajuan.tandaTanganKaprodi && (
-                  <div className="ttd-stamp" style={{ marginTop: 24 }}>
-                    ✅ {selectedPengajuan.tandaTanganKaprodi}
+                  <div style={{
+                    marginTop: 28,
+                    border: "2px solid #10b981",
+                    borderRadius: 12,
+                    background: "linear-gradient(135deg, #ecfdf5, #f0fdf9)",
+                    padding: "16px 20px",
+                    textAlign: "center",
+                    position: "relative",
+                    overflow: "hidden",
+                  }}>
+                    {/* Decorative watermark circle */}
+                    <div style={{
+                      position: "absolute", top: "50%", left: "50%",
+                      transform: "translate(-50%,-50%)",
+                      width: 120, height: 120,
+                      borderRadius: "50%",
+                      border: "3px solid #10b981",
+                      opacity: 0.07,
+                      pointerEvents: "none",
+                    }} />
+                    <div style={{ position: "relative", zIndex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 6 }}>
+                        <svg style={{ width: 20, height: 20, color: "#059669" }} fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+                        </svg>
+                        <span style={{ color: "#065f46", fontWeight: 800, fontSize: 13, letterSpacing: "0.07em", textTransform: "uppercase" }}>
+                          Dokumen Resmi Telah Disetujui
+                        </span>
+                        <svg style={{ width: 20, height: 20, color: "#059669" }} fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+                        </svg>
+                      </div>
+                      <div style={{
+                        background: "rgba(255,255,255,0.8)",
+                        borderRadius: 8,
+                        border: "1px solid #a7f3d0",
+                        padding: "8px 14px",
+                        marginBottom: 8,
+                      }}>
+                        <p style={{ fontFamily: "monospace", fontSize: 11, color: "#047857", wordBreak: "break-all", lineHeight: 1.6, margin: 0 }}>
+                          {selectedPengajuan.tandaTanganKaprodi}
+                        </p>
+                      </div>
+                      <p style={{ fontSize: 10, color: "#10b981", fontWeight: 600, margin: 0 }}>
+                        ✓ Verified Digital Signature • Secure Hash Certificate
+                      </p>
+                    </div>
                   </div>
                 )}
                 {selectedPengajuan.status === "DITOLAK" && (
@@ -316,7 +388,7 @@ export default function OutputLaporanClient({ pengajuanList, edisiList, tarif }:
                     className={`badge ${
                       selectedPengajuan.status === "DISETUJUI"
                         ? "badge-success"
-                        : selectedPengajuan.status === "DITOLAK"
+                        : selectedPengajuan.status === "DITOLAK" || selectedPengajuan.status === "REJECTED"
                           ? "badge-danger"
                           : "badge-warning"
                     }`}
@@ -325,6 +397,50 @@ export default function OutputLaporanClient({ pengajuanList, edisiList, tarif }:
                     Status: {selectedPengajuan.status}
                   </span>
                 </div>
+
+                {/* Catatan Revisi Kaprodi — shown when rejected */}
+                {(selectedPengajuan.status === "DITOLAK" || selectedPengajuan.status === "REJECTED") &&
+                  selectedPengajuan.catatanRevisi && (
+                  <div style={{
+                    marginTop: 20,
+                    borderLeft: "4px solid #f59e0b",
+                    background: "#fffbeb",
+                    borderRadius: "0 10px 10px 0",
+                    padding: "16px 20px",
+                    border: "1px solid #fde68a",
+                    borderLeftColor: "#f59e0b",
+                    borderLeftWidth: 4,
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                      <svg style={{ width: 18, height: 18, color: "#d97706", flexShrink: 0 }}
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <span style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: "#92400e",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                      }}>
+                        Catatan Revisi Kaprodi
+                      </span>
+                    </div>
+                    <p style={{
+                      fontSize: 13,
+                      color: "#78350f",
+                      lineHeight: 1.7,
+                      margin: 0,
+                      fontStyle: "italic",
+                    }}>
+                      &ldquo;{selectedPengajuan.catatanRevisi}&rdquo;
+                    </p>
+                    <p style={{ fontSize: 11, color: "#b45309", marginTop: 10, marginBottom: 0 }}>
+                      ⚠️ Harap lakukan perbaikan sesuai catatan di atas, lalu ajukan kembali melalui tombol <strong>Generate Pengajuan Dana</strong>.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           ) : (

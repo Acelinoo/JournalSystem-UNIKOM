@@ -120,6 +120,29 @@ export async function approveAndSignAction(pengajuanId: string) {
     data: {
       status: "APPROVED",
       tandaTanganKaprodi: signatureHash,
+      catatanRevisi: null,
+    },
+  });
+
+  revalidatePath("/dashboard/kaprodi");
+}
+
+export async function rejectFundRequestAction(pengajuanId: string, catatan: string) {
+  const user = await getSessionUser();
+  if (!user || user.role !== "KAPRODI") {
+    throw new Error("Unauthorized");
+  }
+
+  if (!catatan || catatan.trim() === "") {
+    throw new Error("Catatan revisi/penolakan wajib diisi.");
+  }
+
+  await prisma.pengajuanDana.update({
+    where: { id: pengajuanId },
+    data: {
+      status: "REJECTED",
+      catatanRevisi: catatan.trim(),
+      tandaTanganKaprodi: null,
     },
   });
 
