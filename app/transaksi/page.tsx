@@ -5,6 +5,7 @@ import {
   getReviewerList,
   getNaskahByEdisi,
 } from "@/app/actions";
+import OjsSyncButton from "@/app/components/OjsSyncButton";
 
 export default async function TransaksiPage() {
   const [activeEdisi, editors, reviewers] = await Promise.all([
@@ -78,6 +79,9 @@ export default async function TransaksiPage() {
           .
         </div>
       )}
+
+      {/* OJS UNIKOM Sync Section */}
+      <OjsSyncButton />
 
       <div className="grid-2">
         {/* Input Form */}
