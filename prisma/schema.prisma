@@ -6,86 +6,96 @@ generator client {
   provider = "prisma-client-js"
 }
 
-model EdisiJurnal {
-  id           String      @id @default(uuid())
-  volume       Int         
-  nomor        Int         
-  bulan        String      
-  tahun        Int         
-  isAktif      Boolean     @default(true) 
-  createdAt    DateTime    @default(now())
-  naskah       Naskah[]
-  pengajuan    PengajuanDana[]
-}
-
-model PengaturanTarif {
-  id                String   @id @default(uuid())
-  honorEditor       Float    
-  honorReviewer     Float    
-  persentasePajak   Float    @default(2.5) 
-  updatedAt         DateTime @updatedAt
+model SystemSetting {
+  id              String          @id @default(uuid())
+  volume          Int
+  no              Int
+  bulan           String
+  tahun           Int
+  honorEditor     Float
+  honorReviewer   Float
+  taxRate         Float           @default(2.5)
+  isActive        Boolean         @default(true)
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  naskahJurnals   NaskahJurnal[]
+  pengajuanDana   PengajuanDana?
 }
 
 model Editor {
-  id           String   @id @default(uuid())
+  id           String          @id @default(uuid())
   nama         String
-  nidn         String?  
+  nidn         String?
   noRekening   String
   namaBank     String
   npwp         String?
-  createdAt    DateTime @default(now())
-  naskah       Naskah[]
-  user         User?
+  
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  
+  naskah       NaskahJurnal[]
 }
 
 model Reviewer {
-  id           String   @id @default(uuid())
+  id           String          @id @default(uuid())
   nama         String
-  institusi    String   
+  institusi    String
   noRekening   String
   namaBank     String
   npwp         String?
-  createdAt    DateTime @default(now())
-  naskah       Naskah[]
-  user         User?
+  
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  
+  naskah       NaskahJurnal[]
 }
 
-model Naskah {
-  id            String       @id @default(uuid())
-  judul         String
-  author        String       
-  edisiId       String
-  edisiJurnal   EdisiJurnal  @relation(fields: [edisiId], references: [id])
-  editorId      String
-  editor        Editor       @relation(fields: [editorId], references: [id])
-  reviewerId    String
-  reviewer      Reviewer     @relation(fields: [reviewerId], references: [id])
-  statusReview  String       @default("PENDING")
-  createdAt     DateTime     @default(now())
+model NaskahJurnal {
+  id              String         @id @default(uuid())
+  title           String
+  author          String
+  
+  systemSettingId String
+  systemSetting   SystemSetting  @relation(fields: [systemSettingId], references: [id])
+  
+  editorId        String
+  editor          Editor         @relation(fields: [editorId], references: [id])
+  
+  reviewerId      String
+  reviewer        Reviewer       @relation(fields: [reviewerId], references: [id])
+  
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 }
 
 model PengajuanDana {
-  id              String       @id @default(uuid())
-  tanggalPengajuan DateTime    @default(now())
-  edisiId         String       @unique 
-  edisiJurnal     EdisiJurnal  @relation(fields: [edisiId], references: [id])
-  totalHonorBruto Float
-  totalPotonganPajak Float
-  totalHonorNetto  Float
-  status          String       @default("PENDING")
-  catatanRevisi   String?      
-  tandaTanganKaprodi String?   
-  updatedAt       DateTime     @updatedAt
+  id                 String         @id @default(uuid())
+  
+  systemSettingId    String         @unique
+  systemSetting      SystemSetting  @relation(fields: [systemSettingId], references: [id])
+  
+  status             String         @default("PENDING") // PENDING, APPROVED, REJECTED
+  rejectionReason    String?
+  digitalSignature   String?
+  
+  totalHonorBruto    Float
+  totalTax           Float
+  totalHonorNetto    Float
+  
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 }
 
 model User {
-  id         String    @id @default(uuid())
-  username   String    @unique
-  password   String   
-  nama       String    @default("")
-  role       String    // "ADMIN" | "EDITOR" | "REVIEWER" | "KAPRODI"
-  editorId   String?   @unique
-  editor     Editor?   @relation(fields: [editorId], references: [id])
-  reviewerId String?   @unique
-  reviewer   Reviewer? @relation(fields: [reviewerId], references: [id])
+  id         String   @id @default(uuid())
+  username   String   @unique
+  password   String
+  nama       String
+  role       String   // ADMIN, EDITOR, REVIEWER, KAPRODI
+  editorId   String?
+  reviewerId String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }

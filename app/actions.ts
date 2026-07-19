@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 
 
 // =============================================
-// EDISI JURNAL ACTIONS
+// EDISI JURNAL (SYSTEM SETTING) ACTIONS
 // =============================================
 
 export async function createEdisiJurnal(formData: FormData) {
@@ -14,8 +14,8 @@ export async function createEdisiJurnal(formData: FormData) {
   const bulan = formData.get("bulan") as string;
   const tahun = parseInt(formData.get("tahun") as string);
 
-  await prisma.edisiJurnal.create({
-    data: { volume, nomor, bulan, tahun, isAktif: true },
+  await prisma.systemSetting.create({
+    data: { volume, no: nomor, bulan, tahun, isActive: true, honorEditor: 250000, honorReviewer: 300000 },
   });
 
   revalidatePath("/konfigurasi");
@@ -23,43 +23,19 @@ export async function createEdisiJurnal(formData: FormData) {
 }
 
 export async function toggleEdisiJurnal(id: string) {
-  const edisi = await prisma.edisiJurnal.findUnique({ where: { id } });
+  const edisi = await prisma.systemSetting.findUnique({ where: { id } });
   if (!edisi) return;
 
-  await prisma.edisiJurnal.update({
+  await prisma.systemSetting.update({
     where: { id },
-    data: { isAktif: !edisi.isAktif },
+    data: { isActive: !edisi.isActive },
   });
 
   revalidatePath("/konfigurasi");
   revalidatePath("/");
 }
 
-// =============================================
-// PENGATURAN TARIF ACTIONS
-// =============================================
-
-export async function upsertPengaturanTarif(formData: FormData) {
-  const honorEditor = parseFloat(formData.get("honorEditor") as string);
-  const honorReviewer = parseFloat(formData.get("honorReviewer") as string);
-  const persentasePajak = parseFloat(formData.get("persentasePajak") as string);
-
-  const existing = await prisma.pengaturanTarif.findFirst();
-
-  if (existing) {
-    await prisma.pengaturanTarif.update({
-      where: { id: existing.id },
-      data: { honorEditor, honorReviewer, persentasePajak },
-    });
-  } else {
-    await prisma.pengaturanTarif.create({
-      data: { honorEditor, honorReviewer, persentasePajak },
-    });
-  }
-
-  revalidatePath("/konfigurasi");
-  revalidatePath("/");
-}
+// Legacy actions removed for PengaturanTarif (now in SystemSetting)
 
 // =============================================
 // EDITOR ACTIONS
@@ -121,9 +97,9 @@ export async function createNaskah(formData: FormData) {
   const editorId = formData.get("editorId") as string;
   const reviewerId = formData.get("reviewerId") as string;
 
-  // Auto-map to the currently active EdisiJurnal
-  const activeEdisi = await prisma.edisiJurnal.findFirst({
-    where: { isAktif: true },
+  // Auto-map to the currently active SystemSetting
+  const activeEdisi = await prisma.systemSetting.findFirst({
+    where: { isActive: true },
     orderBy: { createdAt: "desc" },
   });
 
@@ -131,11 +107,11 @@ export async function createNaskah(formData: FormData) {
     throw new Error("Tidak ada edisi jurnal yang aktif. Silakan aktifkan edisi terlebih dahulu.");
   }
 
-  await prisma.naskah.create({
+  await prisma.naskahJurnal.create({
     data: {
-      judul,
+      title: judul,
       author,
-      edisiId: activeEdisi.id,
+      systemSettingId: activeEdisi.id,
       editorId,
       reviewerId,
     },
@@ -149,29 +125,31 @@ export async function createNaskah(formData: FormData) {
 // PENGAJUAN DANA ACTIONS
 // =============================================
 
-export async function generatePengajuanDana(edisiId: string) {
+export async function generatePengajuanDana(systemSettingId: string) {
   // Count manuscripts for this edition
-  const naskahCount = await prisma.naskah.count({
-    where: { edisiId },
+  const naskahCount = await prisma.naskahJurnal.count({
+    where: { systemSettingId },
   });
 
-  // Get the current tarif settings
-  const tarif = await prisma.pengaturanTarif.findFirst();
-  if (!tarif) {
-    throw new Error("Pengaturan tarif belum dikonfigurasi. Silakan atur tarif terlebih dahulu.");
+  // Get the current tarif settings from SystemSetting
+  const setting = await prisma.systemSetting.findUnique({
+    where: { id: systemSettingId }
+  });
+  if (!setting) {
+    throw new Error("Sistem Setting tidak ditemukan.");
   }
 
   // Calculate financials
   // Each naskah has 1 editor + 1 reviewer
-  const totalHonorEditorBruto = naskahCount * tarif.honorEditor;
-  const totalHonorReviewerBruto = naskahCount * tarif.honorReviewer;
+  const totalHonorEditorBruto = naskahCount * setting.honorEditor;
+  const totalHonorReviewerBruto = naskahCount * setting.honorReviewer;
   const totalHonorBruto = totalHonorEditorBruto + totalHonorReviewerBruto;
-  const totalPotonganPajak = totalHonorBruto * (tarif.persentasePajak / 100);
-  const totalHonorNetto = totalHonorBruto - totalPotonganPajak;
+  const totalTax = totalHonorBruto * (setting.taxRate / 100);
+  const totalHonorNetto = totalHonorBruto - totalTax;
 
-  // Upsert the PengajuanDana (one per edisi because of @unique on edisiId)
+  // Upsert the PengajuanDana
   const existing = await prisma.pengajuanDana.findUnique({
-    where: { edisiId },
+    where: { systemSettingId },
   });
 
   if (existing) {
@@ -179,19 +157,19 @@ export async function generatePengajuanDana(edisiId: string) {
       where: { id: existing.id },
       data: {
         totalHonorBruto,
-        totalPotonganPajak,
+        totalTax,
         totalHonorNetto,
         status: "PENDING",
-        catatanRevisi: null,
-        tandaTanganKaprodi: null,
+        rejectionReason: null,
+        digitalSignature: null,
       },
     });
   } else {
     await prisma.pengajuanDana.create({
       data: {
-        edisiId,
+        systemSettingId,
         totalHonorBruto,
-        totalPotonganPajak,
+        totalTax,
         totalHonorNetto,
       },
     });
@@ -210,9 +188,9 @@ export async function approvePengajuan(pengajuanId: string, namaKaprodi: string)
   await prisma.pengajuanDana.update({
     where: { id: pengajuanId },
     data: {
-      status: "DISETUJUI",
-      tandaTanganKaprodi: `Disetujui oleh ${namaKaprodi} pada ${timestamp}`,
-      catatanRevisi: null,
+      status: "APPROVED",
+      digitalSignature: `Disetujui oleh ${namaKaprodi} pada ${timestamp}`,
+      rejectionReason: null,
     },
   });
 
@@ -224,9 +202,9 @@ export async function rejectPengajuan(pengajuanId: string, catatan: string) {
   await prisma.pengajuanDana.update({
     where: { id: pengajuanId },
     data: {
-      status: "DITOLAK",
-      catatanRevisi: catatan,
-      tandaTanganKaprodi: null,
+      status: "REJECTED",
+      rejectionReason: catatan,
+      digitalSignature: null,
     },
   });
 
@@ -241,23 +219,23 @@ export async function rejectPengajuan(pengajuanId: string, catatan: string) {
 export async function getDashboardStats() {
   const [totalEdisi, totalEditor, totalReviewer, totalNaskah, totalPengajuan] =
     await Promise.all([
-      prisma.edisiJurnal.count(),
+      prisma.systemSetting.count(),
       prisma.editor.count(),
       prisma.reviewer.count(),
-      prisma.naskah.count(),
+      prisma.naskahJurnal.count(),
       prisma.pengajuanDana.count(),
     ]);
 
-  const activeEdisi = await prisma.edisiJurnal.findFirst({
-    where: { isAktif: true },
+  const activeEdisi = await prisma.systemSetting.findFirst({
+    where: { isActive: true },
     orderBy: { createdAt: "desc" },
   });
 
-  const recentNaskah = await prisma.naskah.findMany({
+  const recentNaskah = await prisma.naskahJurnal.findMany({
     take: 10,
     orderBy: { createdAt: "desc" },
     include: {
-      edisiJurnal: true,
+      systemSetting: true,
       editor: true,
       reviewer: true,
     },
@@ -279,16 +257,21 @@ export async function getDashboardStats() {
   };
 }
 
-export async function getEdisiJurnalList() {
-  return prisma.edisiJurnal.findMany({
+export async function getSystemSettingList() {
+  return prisma.systemSetting.findMany({
     orderBy: { createdAt: "desc" },
-    include: { _count: { select: { naskah: true } } },
+    include: { _count: { select: { naskahJurnals: true } }, naskahJurnals: { include: { editor: true, reviewer: true } } },
   });
 }
 
-export async function getPengaturanTarif() {
-  return prisma.pengaturanTarif.findFirst();
+export async function getEdisiJurnalList() {
+  return prisma.systemSetting.findMany({
+    orderBy: { createdAt: "desc" },
+    include: { _count: { select: { naskahJurnals: true } } },
+  });
 }
+
+// Legacy action getPengaturanTarif removed
 
 export async function getEditorList() {
   return prisma.editor.findMany({ orderBy: { createdAt: "desc" } });
@@ -298,35 +281,35 @@ export async function getReviewerList() {
   return prisma.reviewer.findMany({ orderBy: { createdAt: "desc" } });
 }
 
-export async function getNaskahByEdisi(edisiId: string) {
-  return prisma.naskah.findMany({
-    where: { edisiId },
+export async function getNaskahByEdisi(systemSettingId: string) {
+  return prisma.naskahJurnal.findMany({
+    where: { systemSettingId },
     include: { editor: true, reviewer: true },
     orderBy: { createdAt: "desc" },
   });
 }
 
 export async function getActiveEdisi() {
-  return prisma.edisiJurnal.findFirst({
-    where: { isAktif: true },
+  return prisma.systemSetting.findFirst({
+    where: { isActive: true },
     orderBy: { createdAt: "desc" },
   });
 }
 
-export async function getPengajuanByEdisi(edisiId: string) {
+export async function getPengajuanByEdisi(systemSettingId: string) {
   return prisma.pengajuanDana.findUnique({
-    where: { edisiId },
-    include: { edisiJurnal: true },
+    where: { systemSettingId },
+    include: { systemSetting: true },
   });
 }
 
 export async function getAllPengajuan() {
   return prisma.pengajuanDana.findMany({
-    orderBy: { tanggalPengajuan: "desc" },
+    orderBy: { createdAt: "desc" },
     include: {
-      edisiJurnal: {
+      systemSetting: {
         include: {
-          naskah: {
+          naskahJurnals: {
             include: { editor: true, reviewer: true },
           },
         },
@@ -342,8 +325,8 @@ export async function getAllPengajuan() {
 export async function syncOjsUnikomPapers() {
   try {
     // Get active edisi
-    const activeEdisi = await prisma.edisiJurnal.findFirst({
-      where: { isAktif: true },
+    const activeEdisi = await prisma.systemSetting.findFirst({
+      where: { isActive: true },
       orderBy: { createdAt: "desc" },
     });
 
@@ -453,8 +436,8 @@ export async function syncOjsUnikomPapers() {
 
     for (const paper of extractedPapers) {
       // Check if naskah already exists by title
-      const existing = await prisma.naskah.findFirst({
-        where: { judul: paper.title },
+      const existing = await prisma.naskahJurnal.findFirst({
+        where: { title: paper.title },
       });
 
       if (!existing) {
@@ -462,11 +445,11 @@ export async function syncOjsUnikomPapers() {
         const editorIndex = syncedCount % editors.length;
         const reviewerIndex = syncedCount % reviewers.length;
 
-        await prisma.naskah.create({
+        await prisma.naskahJurnal.create({
           data: {
-            judul: paper.title,
+            title: paper.title,
             author: paper.author,
-            edisiId: activeEdisi.id,
+            systemSettingId: activeEdisi.id,
             editorId: editors[editorIndex].id,
             reviewerId: reviewers[reviewerIndex].id,
           },

@@ -52,7 +52,7 @@ export default async function TransaksiPage() {
           <span>
             Edisi aktif:{" "}
             <strong>
-              Vol. {activeEdisi.volume} No. {activeEdisi.nomor} — {activeEdisi.bulan}{" "}
+              Vol. {activeEdisi.volume} No. {activeEdisi.no} — {activeEdisi.bulan}{" "}
               {activeEdisi.tahun}
             </strong>
           </span>
@@ -210,7 +210,7 @@ export default async function TransaksiPage() {
                     <tr key={n.id}>
                       <td style={{ color: "#94a3b8" }}>{i + 1}</td>
                       <td style={{ fontWeight: 500, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {n.judul}
+                        {n.title}
                       </td>
                       <td>{n.author}</td>
                       <td>{n.editor.nama}</td>

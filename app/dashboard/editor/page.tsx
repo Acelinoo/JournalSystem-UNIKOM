@@ -110,8 +110,8 @@ export default async function EditorDashboardPage() {
                   return (
                     <tr key={n.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-4">
-                        <p className="font-semibold text-slate-900 mb-1">{n.judul}</p>
-                        <p className="text-xs text-slate-500">Submitted: {formatDate(n.createdAt)} • Vol.{n.edisiJurnal.volume} No.{n.edisiJurnal.nomor}</p>
+                        <p className="font-semibold text-slate-900 mb-1">{n.title}</p>
+                        <p className="text-xs text-slate-500">Submitted: {formatDate(n.createdAt)} • Vol.{n.systemSetting.volume} No.{n.systemSetting.no}</p>
                       </td>
                       <td className="px-6 py-4 text-slate-700">{n.author}</td>
                       <td className="px-6 py-4">

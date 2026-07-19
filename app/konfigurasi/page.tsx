@@ -1,16 +1,11 @@
 import {
   createEdisiJurnal,
   toggleEdisiJurnal,
-  upsertPengaturanTarif,
-  getEdisiJurnalList,
-  getPengaturanTarif,
+  getSystemSettingList,
 } from "@/app/actions";
 
 export default async function KonfigurasiPage() {
-  const [edisiList, tarif] = await Promise.all([
-    getEdisiJurnalList(),
-    getPengaturanTarif(),
-  ]);
+  const edisiList = await getSystemSettingList();
 
   return (
     <div className="animate-fade-in">
@@ -122,18 +117,18 @@ export default async function KonfigurasiPage() {
                   {edisiList.map((edisi) => (
                     <tr key={edisi.id}>
                       <td style={{ fontWeight: 600 }}>
-                        Vol. {edisi.volume} No. {edisi.nomor}
+                        Vol. {edisi.volume} No. {edisi.no}
                       </td>
                       <td>
                         {edisi.bulan} {edisi.tahun}
                       </td>
                       <td>
                         <span className="badge badge-neutral">
-                          {edisi._count.naskah} naskah
+                          {edisi._count.naskahJurnals} naskah
                         </span>
                       </td>
                       <td>
-                        {edisi.isAktif ? (
+                        {edisi.isActive ? (
                           <span className="badge badge-success">● Aktif</span>
                         ) : (
                           <span className="badge badge-neutral">Nonaktif</span>
@@ -148,9 +143,9 @@ export default async function KonfigurasiPage() {
                         >
                           <button
                             type="submit"
-                            className={`btn btn-sm ${edisi.isAktif ? "btn-warning" : "btn-success"}`}
+                            className={`btn btn-sm ${edisi.isActive ? "btn-warning" : "btn-success"}`}
                           >
-                            {edisi.isAktif ? "Nonaktifkan" : "Aktifkan"}
+                            {edisi.isActive ? "Nonaktifkan" : "Aktifkan"}
                           </button>
                         </form>
                       </td>
@@ -166,119 +161,7 @@ export default async function KonfigurasiPage() {
           )}
         </div>
 
-        {/* ===== PENGATURAN TARIF SECTION ===== */}
-        <div className="card">
-          <div className="card-header">
-            <h3>💰 Pengaturan Tarif</h3>
-            {tarif && (
-              <span className="badge badge-success">Tersimpan</span>
-            )}
-          </div>
-
-          <form action={upsertPengaturanTarif}>
-            <div className="form-group">
-              <label className="form-label" htmlFor="honorEditor">
-                Honor Editor (per naskah)
-              </label>
-              <input
-                id="honorEditor"
-                name="honorEditor"
-                type="number"
-                step="0.01"
-                min="0"
-                className="form-input"
-                placeholder="Contoh: 500000"
-                defaultValue={tarif?.honorEditor ?? ""}
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label" htmlFor="honorReviewer">
-                Honor Reviewer (per naskah)
-              </label>
-              <input
-                id="honorReviewer"
-                name="honorReviewer"
-                type="number"
-                step="0.01"
-                min="0"
-                className="form-input"
-                placeholder="Contoh: 750000"
-                defaultValue={tarif?.honorReviewer ?? ""}
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label" htmlFor="persentasePajak">
-                Persentase Pajak (%)
-              </label>
-              <input
-                id="persentasePajak"
-                name="persentasePajak"
-                type="number"
-                step="0.01"
-                min="0"
-                max="100"
-                className="form-input"
-                placeholder="Contoh: 2.5"
-                defaultValue={tarif?.persentasePajak ?? "2.5"}
-                required
-              />
-            </div>
-
-            <button type="submit" className="btn btn-primary" style={{ width: "100%" }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                <polyline points="17 21 17 13 7 13 7 21" />
-                <polyline points="7 3 7 8 15 8" />
-              </svg>
-              Simpan Pengaturan Tarif
-            </button>
-          </form>
-
-          {tarif && (
-            <div
-              style={{
-                marginTop: 20,
-                padding: "16px",
-                background: "#f8fafc",
-                borderRadius: 8,
-                border: "1px solid #e2e8f0",
-              }}
-            >
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#64748b", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                Konfigurasi Saat Ini
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 14 }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "#64748b" }}>Honor Editor</span>
-                  <span style={{ fontWeight: 600 }}>
-                    Rp {tarif.honorEditor.toLocaleString("id-ID")}
-                  </span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "#64748b" }}>Honor Reviewer</span>
-                  <span style={{ fontWeight: 600 }}>
-                    Rp {tarif.honorReviewer.toLocaleString("id-ID")}
-                  </span>
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    paddingTop: 8,
-                    borderTop: "1px solid #e2e8f0",
-                  }}
-                >
-                  <span style={{ color: "#64748b" }}>Pajak</span>
-                  <span style={{ fontWeight: 600 }}>{tarif.persentasePajak}%</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        {/* PENGATURAN TARIF SECTION MOVED TO EDISI JURNAL CREATION */}
       </div>
     </div>
   );

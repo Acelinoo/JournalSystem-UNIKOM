@@ -9,37 +9,30 @@ const prisma = new PrismaClient({ adapter })
 
 async function main() {
   // 1. Clean existing data to avoid duplication bugs
-  await prisma.naskah.deleteMany({})
+  await prisma.naskahJurnal.deleteMany({})
   await prisma.pengajuanDana.deleteMany({})
   await prisma.user.deleteMany({})
   await prisma.editor.deleteMany({})
   await prisma.reviewer.deleteMany({})
-  await prisma.pengaturanTarif.deleteMany({})
-  await prisma.edisiJurnal.deleteMany({})
+  await prisma.systemSetting.deleteMany({})
 
   console.log('🧹 Database cleaned successfully.')
 
-  // 2. Seed Pengaturan Tarif & Pajak Default
-  const tarif = await prisma.pengaturanTarif.create({
-    data: {
-      honorEditor: 250000,     // Rp 250.000 per naskah
-      honorReviewer: 300000,   // Rp 300.000 per naskah
-      persentasePajak: 2.5,    // Pajak 2.5%
-    },
-  })
-
-  // 3. Seed Edisi Jurnal (Aktif)
-  const edisiAktif = await prisma.edisiJurnal.create({
+  // 2. Seed System Setting (Edisi Aktif)
+  const edisiAktif = await prisma.systemSetting.create({
     data: {
       volume: 9,
-      nomor: 2,
+      no: 2,
       bulan: 'April',
       tahun: 2026,
-      isAktif: true,
+      isActive: true,
+      honorEditor: 250000,
+      honorReviewer: 300000,
+      taxRate: 2.5,
     },
   })
 
-  // 4. Seed Data Master Editors
+  // 3. Seed Data Master Editors
   const editor1 = await prisma.editor.create({
     data: {
       nama: 'Dr. Rian Hadi, M.T.',
@@ -60,7 +53,7 @@ async function main() {
     },
   })
 
-  // 5. Seed Data Master Reviewers
+  // 4. Seed Data Master Reviewers
   const reviewer1 = await prisma.reviewer.create({
     data: {
       nama: 'Prof. Ahmad Subagja, Ph.D.',
@@ -81,55 +74,55 @@ async function main() {
     },
   })
 
-  // 6. Seed Naskah Jurnal & Ploting Data
-  await prisma.naskah.create({
+  // 5. Seed Naskah Jurnal & Ploting Data
+  await prisma.naskahJurnal.create({
     data: {
-      judul: 'Penerapan Arsitektur Microservices Menggunakan Next.js dan Prisma untuk Skalabilitas Aplikasi',
+      title: 'Penerapan Arsitektur Microservices Menggunakan Next.js dan Prisma untuk Skalabilitas Aplikasi',
       author: 'Budi Darmawan',
-      edisiId: edisiAktif.id,
+      systemSettingId: edisiAktif.id,
       editorId: editor1.id,
       reviewerId: reviewer1.id,
     },
   })
 
-  await prisma.naskah.create({
+  await prisma.naskahJurnal.create({
     data: {
-      judul: 'Analisis Keamanan Autentikasi Berbasis JWT pada Platform E-Commerce Sistem Informasi Jurnal',
+      title: 'Analisis Keamanan Autentikasi Berbasis JWT pada Platform E-Commerce Sistem Informasi Jurnal',
       author: 'Dewi Lestari',
-      edisiId: edisiAktif.id,
+      systemSettingId: edisiAktif.id,
       editorId: editor2.id,
       reviewerId: reviewer2.id,
     },
   })
 
-  await prisma.naskah.create({
+  await prisma.naskahJurnal.create({
     data: {
-      judul: 'Rancang Bangun Sistem Keuangan Internal Kampus Menggunakan Database Ringan SQLite',
+      title: 'Rancang Bangun Sistem Keuangan Internal Kampus Menggunakan Database Ringan SQLite',
       author: 'Fajar Nugraha',
-      edisiId: edisiAktif.id,
+      systemSettingId: edisiAktif.id,
       editorId: editor1.id,
       reviewerId: reviewer2.id,
     },
   })
 
-  // 7. Seed Default Pengajuan Dana (Awal Status PENDING)
+  // 6. Seed Default Pengajuan Dana (Awal Status PENDING)
   const bruto = 1650000
   const pajakTotal = bruto * (2.5 / 100)
   const netto = bruto - pajakTotal
 
   await prisma.pengajuanDana.create({
     data: {
-      edisiId: edisiAktif.id,
+      systemSettingId: edisiAktif.id,
       totalHonorBruto: bruto,
-      totalPotonganPajak: pajakTotal,
+      totalTax: pajakTotal,
       totalHonorNetto: netto,
       status: 'PENDING',
-      catatanRevisi: null,
-      tandaTanganKaprodi: null,
+      rejectionReason: null,
+      digitalSignature: null,
     },
   })
 
-  // 8. Seed User Accounts with Role-Based Access Control
+  // 7. Seed User Accounts with Role-Based Access Control
   // ADMIN account (full access)
   await prisma.user.create({
     data: {
@@ -201,5 +194,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect()
   })
-
-

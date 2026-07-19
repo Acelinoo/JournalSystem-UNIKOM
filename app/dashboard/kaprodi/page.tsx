@@ -138,7 +138,7 @@ export default async function KaprodiDashboardPage() {
                     <div className="flex-1 space-y-3">
                       <div className="flex items-center gap-3 flex-wrap">
                         <h4 className="text-lg font-bold text-slate-900">
-                          Vol. {p.edisiJurnal.volume} No. {p.edisiJurnal.nomor} — {p.edisiJurnal.bulan} {p.edisiJurnal.tahun}
+                          Vol. {p.systemSetting.volume} No. {p.systemSetting.no} — {p.systemSetting.bulan} {p.systemSetting.tahun}
                         </h4>
                         <span className={`text-xs px-2.5 py-1 rounded-full border font-semibold ${
                           isApproved
@@ -158,7 +158,7 @@ export default async function KaprodiDashboardPage() {
                         </div>
                         <div className="bg-slate-50 rounded-lg px-4 py-3 border border-slate-100">
                           <p className="text-slate-500 text-xs font-medium mb-1">Potongan Pajak</p>
-                          <p className="text-red-600 font-bold">- {formatCurrency(p.totalPotonganPajak)}</p>
+                          <p className="text-red-600 font-bold">- {formatCurrency(p.totalTax)}</p>
                         </div>
                         <div className="bg-slate-900 rounded-lg px-4 py-3">
                           <p className="text-slate-400 text-xs font-medium mb-1">Honor Netto (Cair)</p>
@@ -167,18 +167,18 @@ export default async function KaprodiDashboardPage() {
                       </div>
 
                       <p className="text-xs text-slate-500">
-                        Submitted: {formatDate(p.tanggalPengajuan)}
+                        Submitted: {formatDate(p.createdAt)}
                       </p>
 
                       {/* Rejection notes display */}
-                      {isRejected && p.catatanRevisi && (
+                      {isRejected && p.rejectionReason && (
                         <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mt-1">
                           <svg className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
                           </svg>
                           <div>
                             <p className="text-xs font-semibold text-amber-800 mb-0.5">Catatan Revisi:</p>
-                            <p className="text-xs text-amber-700">{p.catatanRevisi}</p>
+                            <p className="text-xs text-amber-700">{p.rejectionReason}</p>
                           </div>
                         </div>
                       )}
@@ -205,7 +205,7 @@ export default async function KaprodiDashboardPage() {
                               </div>
                               <div className="border border-emerald-200 rounded-lg bg-white/70 px-3 py-2 mb-2">
                                 <p className="text-[10px] text-emerald-600 font-mono break-all leading-relaxed">
-                                  {p.tandaTanganKaprodi}
+                                  {p.digitalSignature}
                                 </p>
                               </div>
                               <div className="flex items-center justify-center gap-1.5">

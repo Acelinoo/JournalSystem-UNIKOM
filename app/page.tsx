@@ -99,7 +99,7 @@ export default async function DashboardPage() {
             </div>
             <div>
               <span style={{ color: "#64748b" }}>Nomor: </span>
-              <strong>{stats.activeEdisi.nomor}</strong>
+              <strong>{stats.activeEdisi.no}</strong>
             </div>
             <div>
               <span style={{ color: "#64748b" }}>Periode: </span>
@@ -141,15 +141,15 @@ export default async function DashboardPage() {
                     className="animate-fade-in"
                     style={{ animationDelay: `${i * 0.05}s` }}
                   >
-                    <td style={{ fontWeight: 500, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {n.judul}
+                    <td style={{ fontWeight: 500, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>
+                      {n.title}
                     </td>
                     <td>{n.author}</td>
                     <td>{n.editor.nama}</td>
                     <td>{n.reviewer.nama}</td>
                     <td>
                       <span className="badge badge-neutral">
-                        Vol.{n.edisiJurnal.volume} No.{n.edisiJurnal.nomor}
+                        Vol.{n.systemSetting.volume} No.{n.systemSetting.no}
                       </span>
                     </td>
                     <td style={{ color: "#64748b", fontSize: 13 }}>

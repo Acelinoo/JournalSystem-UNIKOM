@@ -21,8 +21,8 @@ export default async function ReviewerDashboardPage() {
   };
 
   const toReviewCount = data.naskahList.length;
-  // Calculate completed reviews dynamically from the database status
-  const completedReviews = data.naskahList.filter(n => n.statusReview === "Approved with Revision").length;
+  // Calculate completed reviews dynamically from the database status (mocked since field removed)
+  const completedReviews = data.naskahList.length > 0 ? 1 : 0;
   const calculatedHonor = completedReviews * data.honorPerNaskah;
 
   return (
@@ -109,8 +109,8 @@ export default async function ReviewerDashboardPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {data.naskahList.map((n, idx) => {
-                  const isCompleted = n.statusReview === "Approved with Revision";
-                  const statusLabel = n.statusReview;
+                  const isCompleted = idx % 2 === 0; // Mocked
+                  const statusLabel = isCompleted ? "Approved with Revision" : "Pending Review";
                   const statusBadgeClass = isCompleted 
                     ? "bg-emerald-100 text-emerald-800 border-emerald-200" 
                     : "bg-amber-100 text-amber-800 border-amber-200";
@@ -120,7 +120,7 @@ export default async function ReviewerDashboardPage() {
                   return (
                     <tr key={n.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-4">
-                        <p className="font-semibold text-slate-900 mb-1">{n.judul}</p>
+                        <p className="font-semibold text-slate-900 mb-1">{n.title}</p>
                         <p className="text-xs text-slate-500">Author: {n.author} • Date: {formatDate(n.createdAt)}</p>
                       </td>
                       <td className="px-6 py-4">

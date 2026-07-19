@@ -7,15 +7,19 @@ import {
   rejectPengajuan,
 } from "@/app/actions";
 
-interface EdisiJurnal {
+interface SystemSetting {
   id: string;
   volume: number;
-  nomor: number;
+  no: number;
   bulan: string;
   tahun: number;
-  naskah: {
+  honorEditor: number;
+  honorReviewer: number;
+  taxRate: number;
+  isActive: boolean;
+  naskahJurnals: {
     id: string;
-    judul: string;
+    title: string;
     author: string;
     editor: { id: string; nama: string; nidn: string | null; noRekening: string; namaBank: string; npwp: string | null };
     reviewer: { id: string; nama: string; institusi: string; noRekening: string; namaBank: string; npwp: string | null };
@@ -24,30 +28,23 @@ interface EdisiJurnal {
 
 interface Pengajuan {
   id: string;
-  edisiId: string;
+  systemSettingId: string;
   totalHonorBruto: number;
-  totalPotonganPajak: number;
+  totalTax: number;
   totalHonorNetto: number;
   status: string;
-  catatanRevisi: string | null;
-  tandaTanganKaprodi: string | null;
-  tanggalPengajuan: Date;
-  edisiJurnal: EdisiJurnal;
-}
-
-interface Tarif {
-  honorEditor: number;
-  honorReviewer: number;
-  persentasePajak: number;
+  rejectionReason: string | null;
+  digitalSignature: string | null;
+  createdAt: Date;
+  systemSetting: SystemSetting;
 }
 
 interface Props {
   pengajuanList: Pengajuan[];
-  edisiList: EdisiJurnal[];
-  tarif: Tarif | null;
+  edisiList: SystemSetting[];
 }
 
-export default function OutputLaporanClient({ pengajuanList, edisiList, tarif }: Props) {
+export default function OutputLaporanClient({ pengajuanList, edisiList }: Props) {
   const [activeTab, setActiveTab] = useState<"surat" | "sertifikat" | "simulator">("surat");
   const [selectedEdisiId, setSelectedEdisiId] = useState<string>(
     edisiList.length > 0 ? edisiList[0].id : ""
@@ -57,21 +54,21 @@ export default function OutputLaporanClient({ pengajuanList, edisiList, tarif }:
   const [isLoading, setIsLoading] = useState(false);
 
   const selectedEdisi = edisiList.find((e) => e.id === selectedEdisiId);
-  const selectedPengajuan = pengajuanList.find((p) => p.edisiId === selectedEdisiId);
+  const selectedPengajuan = pengajuanList.find((p) => p.systemSettingId === selectedEdisiId);
 
   // Collect unique editors/reviewers from the selected edition
-  const editorMap = new Map<string, typeof selectedEdisi extends undefined ? never : NonNullable<typeof selectedEdisi>["naskah"][0]["editor"]>();
-  const reviewerMap = new Map<string, typeof selectedEdisi extends undefined ? never : NonNullable<typeof selectedEdisi>["naskah"][0]["reviewer"]>();
+  const editorMap = new Map<string, typeof selectedEdisi extends undefined ? never : NonNullable<typeof selectedEdisi>["naskahJurnals"][0]["editor"]>();
+  const reviewerMap = new Map<string, typeof selectedEdisi extends undefined ? never : NonNullable<typeof selectedEdisi>["naskahJurnals"][0]["reviewer"]>();
 
   if (selectedEdisi) {
-    for (const n of selectedEdisi.naskah) {
+    for (const n of selectedEdisi.naskahJurnals) {
       if (!editorMap.has(n.editor.id)) editorMap.set(n.editor.id, n.editor);
       if (!reviewerMap.has(n.reviewer.id)) reviewerMap.set(n.reviewer.id, n.reviewer);
     }
   }
 
   const handleGenerate = async () => {
-    if (!selectedEdisiId || !tarif) return;
+    if (!selectedEdisiId || !selectedEdisi) return;
     setIsLoading(true);
     try {
       await generatePengajuanDana(selectedEdisiId);
@@ -136,17 +133,17 @@ export default function OutputLaporanClient({ pengajuanList, edisiList, tarif }:
           {edisiList.length === 0 && <option value="">Tidak ada edisi</option>}
           {edisiList.map((e) => (
             <option key={e.id} value={e.id}>
-              Vol. {e.volume} No. {e.nomor} — {e.bulan} {e.tahun} ({e.naskah.length} naskah)
+              Vol. {e.volume} No. {e.no} — {e.bulan} {e.tahun} ({e.naskahJurnals.length} naskah)
             </option>
           ))}
         </select>
 
         <div style={{ display: "flex", gap: 8 }}>
-          {selectedEdisi && tarif ? (
+          {selectedEdisi ? (
             <button
               className="btn btn-primary"
               onClick={handleGenerate}
-              disabled={isLoading || selectedEdisi.naskah.length === 0}
+              disabled={isLoading || selectedEdisi.naskahJurnals.length === 0}
             >
               {isLoading ? "Memproses..." : "⚡ Generate Pengajuan Dana"}
             </button>
@@ -155,13 +152,13 @@ export default function OutputLaporanClient({ pengajuanList, edisiList, tarif }:
               className="btn btn-primary"
               style={{ opacity: 0.5, cursor: "not-allowed" }}
               disabled
-              title="Membutuhkan Konfigurasi Edisi & Tarif"
+              title="Membutuhkan Konfigurasi Edisi"
             >
               ⚡ Generate Pengajuan Dana
             </button>
           )}
 
-          {(!selectedEdisi || !tarif || pengajuanList.length === 0) && (
+          {(!selectedEdisi || pengajuanList.length === 0) && (
             <form action={async () => {
               // Redirect to a specialized seed route or run an inline server action if we had one.
               // For the demo, we will just alert the user to run the seed or we can call a server action here.
@@ -217,7 +214,7 @@ export default function OutputLaporanClient({ pengajuanList, edisiList, tarif }:
                     }}
                     onClick={() => {
                       const originalTitle = document.title;
-                      document.title = `Laporan_Resmi_Vol${selectedPengajuan.edisiJurnal.volume}_No${selectedPengajuan.edisiJurnal.nomor}_${selectedPengajuan.edisiJurnal.tahun}`;
+                      document.title = `Laporan_Resmi_Vol${selectedPengajuan.systemSetting.volume}_No${selectedPengajuan.systemSetting.no}_${selectedPengajuan.systemSetting.tahun}`;
                       window.print();
                       setTimeout(() => { document.title = originalTitle; }, 1000);
                     }}
@@ -231,72 +228,84 @@ export default function OutputLaporanClient({ pengajuanList, edisiList, tarif }:
                 )}
               </div>
               <div className="surat-container print-area">
-                <div className="surat-kop">
-                  <h2>Universitas Contoh Nusantara</h2>
-                  <h3>Fakultas Ilmu Komputer</h3>
-                  <p>Jl. Pendidikan No. 123, Kota Ilmu, Indonesia 12345</p>
-                  <p>Telp: (021) 123-4567 | Email: jurnal@ucn.ac.id</p>
+                <div className="surat-kop" style={{ color: "#0a192f" }}>
+                  <h2 style={{ color: "#0a192f" }}>Universitas Komputer Indonesia (UNIKOM)</h2>
+                  <h3 style={{ color: "#0a192f" }}>Fakultas Ilmu Komputer</h3>
+                  <p>Jl. Dipati Ukur No. 112-116, Lebakgede, Kecamatan Coblong, Kota Bandung, Jawa Barat 40132</p>
+                  <p>Telp: (022) 2504119 | Email: jurnal@unikom.ac.id</p>
                 </div>
 
                 <div className="surat-meta">
                   <div>
-                    <div>No: SPD/{selectedPengajuan.edisiJurnal.volume}/{selectedPengajuan.edisiJurnal.tahun}/FIK</div>
+                    <div>No: SPD/{selectedPengajuan.systemSetting.volume}/{selectedPengajuan.systemSetting.tahun}/FIK</div>
                     <div>Hal: Pengajuan Dana Honor</div>
                   </div>
                   <div style={{ textAlign: "right" }}>
                     <div>
-                      {new Date(selectedPengajuan.tanggalPengajuan).toLocaleDateString("id-ID", {
+                      {new Date(selectedPengajuan.createdAt).toLocaleDateString("id-ID", {
                         dateStyle: "long",
                       })}
                     </div>
                   </div>
                 </div>
 
-                <p>Kepada Yth.<br /><strong>Kepala Bagian Keuangan</strong><br />Universitas Contoh Nusantara</p>
+                <p>Kepada Yth.<br /><strong>Kepala Bagian Keuangan</strong><br />Universitas Komputer Indonesia (UNIKOM)</p>
 
                 <p>Dengan hormat,</p>
                 <p>
                   Bersama surat ini kami mengajukan permohonan pencairan dana untuk pembayaran honor
                   Editor dan Reviewer untuk penerbitan jurnal edisi{" "}
                   <strong>
-                    Vol. {selectedPengajuan.edisiJurnal.volume} No.{" "}
-                    {selectedPengajuan.edisiJurnal.nomor}, {selectedPengajuan.edisiJurnal.bulan}{" "}
-                    {selectedPengajuan.edisiJurnal.tahun}
+                    Volume (Vol.) {selectedPengajuan.systemSetting.volume}, Nomor (No.) {selectedPengajuan.systemSetting.no}, {selectedPengajuan.systemSetting.bulan} {selectedPengajuan.systemSetting.tahun}
                   </strong>
                   , dengan rincian sebagai berikut:
                 </p>
 
                 {/* Financial Details Table */}
                 <div className="table-wrapper" style={{ margin: "20px 0" }}>
-                  <table style={{ border: "1px solid #cbd5e1" }}>
+                  <table style={{ border: "1px solid #cbd5e1", width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr>
-                        <th style={{ border: "1px solid #cbd5e1", textAlign: "center" }}>No</th>
-                        <th style={{ border: "1px solid #cbd5e1" }}>Uraian</th>
-                        <th style={{ border: "1px solid #cbd5e1", textAlign: "right" }}>Jumlah</th>
+                        <th style={{ border: "1px solid #cbd5e1", textAlign: "center", padding: "8px", backgroundColor: "#0a192f", color: "white" }}>No</th>
+                        <th style={{ border: "1px solid #cbd5e1", padding: "8px", backgroundColor: "#0a192f", color: "white" }}>Uraian</th>
+                        <th style={{ border: "1px solid #cbd5e1", textAlign: "right", padding: "8px", backgroundColor: "#0a192f", color: "white" }}>Jumlah</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr>
-                        <td style={{ border: "1px solid #cbd5e1", textAlign: "center" }}>1</td>
-                        <td style={{ border: "1px solid #cbd5e1" }}>Total Honor Bruto (Editor + Reviewer)</td>
-                        <td style={{ border: "1px solid #cbd5e1", textAlign: "right", fontWeight: 600 }}>
+                        <td style={{ border: "1px solid #cbd5e1", textAlign: "center", padding: "8px" }}>1</td>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "8px" }}>Total Honorarium Editor ({selectedEdisi?.naskahJurnals.length || 0} Naskah x {formatRupiah(selectedEdisi?.honorEditor || 0)})</td>
+                        <td style={{ border: "1px solid #cbd5e1", textAlign: "right", fontWeight: 600, padding: "8px" }}>
+                          {formatRupiah((selectedEdisi?.naskahJurnals.length || 0) * (selectedEdisi?.honorEditor || 0))}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style={{ border: "1px solid #cbd5e1", textAlign: "center", padding: "8px" }}>2</td>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "8px" }}>Total Honorarium Reviewer ({selectedEdisi?.naskahJurnals.length || 0} Naskah x {formatRupiah(selectedEdisi?.honorReviewer || 0)})</td>
+                        <td style={{ border: "1px solid #cbd5e1", textAlign: "right", fontWeight: 600, padding: "8px" }}>
+                          {formatRupiah((selectedEdisi?.naskahJurnals.length || 0) * (selectedEdisi?.honorReviewer || 0))}
+                        </td>
+                      </tr>
+                      <tr style={{ backgroundColor: "#f8fafc" }}>
+                        <td style={{ border: "1px solid #cbd5e1", textAlign: "center", padding: "8px" }}></td>
+                        <td style={{ border: "1px solid #cbd5e1", fontWeight: 600, padding: "8px", textAlign: "right" }}>Total Bruto</td>
+                        <td style={{ border: "1px solid #cbd5e1", textAlign: "right", fontWeight: 600, padding: "8px" }}>
                           {formatRupiah(selectedPengajuan.totalHonorBruto)}
                         </td>
                       </tr>
                       <tr>
-                        <td style={{ border: "1px solid #cbd5e1", textAlign: "center" }}>2</td>
-                        <td style={{ border: "1px solid #cbd5e1" }}>
-                          Potongan Pajak ({tarif ? tarif.persentasePajak : 2.5}%)
+                        <td style={{ border: "1px solid #cbd5e1", textAlign: "center", padding: "8px" }}>3</td>
+                        <td style={{ border: "1px solid #cbd5e1", padding: "8px" }}>
+                          Potongan Pajak ({selectedEdisi?.taxRate || 2.5}%)
                         </td>
-                        <td style={{ border: "1px solid #cbd5e1", textAlign: "right", color: "#dc2626" }}>
-                          - {formatRupiah(selectedPengajuan.totalPotonganPajak)}
+                        <td style={{ border: "1px solid #cbd5e1", textAlign: "right", color: "#dc2626", padding: "8px" }}>
+                          - {formatRupiah(selectedPengajuan.totalTax)}
                         </td>
                       </tr>
-                      <tr style={{ background: "#ecfdf5" }}>
-                        <td style={{ border: "1px solid #cbd5e1", textAlign: "center" }}></td>
-                        <td style={{ border: "1px solid #cbd5e1", fontWeight: 700 }}>Total Honor Netto (Dibayarkan)</td>
-                        <td style={{ border: "1px solid #cbd5e1", textAlign: "right", fontWeight: 700, color: "#059669" }}>
+                      <tr style={{ background: "#e6f4f1" }}>
+                        <td style={{ border: "1px solid #cbd5e1", textAlign: "center", padding: "8px" }}></td>
+                        <td style={{ border: "1px solid #cbd5e1", fontWeight: 700, padding: "8px", color: "#0a192f" }}>Total Honor Netto (Dibayarkan)</td>
+                        <td style={{ border: "1px solid #cbd5e1", textAlign: "right", fontWeight: 700, color: "#0d9488", padding: "8px" }}>
                           {formatRupiah(selectedPengajuan.totalHonorNetto)}
                         </td>
                       </tr>
@@ -326,7 +335,7 @@ export default function OutputLaporanClient({ pengajuanList, edisiList, tarif }:
                 </div>
 
                 {/* Digital Signature Stamp */}
-                {selectedPengajuan.status === "DISETUJUI" && selectedPengajuan.tandaTanganKaprodi && (
+                {selectedPengajuan.status === "APPROVED" && selectedPengajuan.digitalSignature && (
                   <div style={{
                     marginTop: 28,
                     border: "2px solid #10b981",
@@ -367,7 +376,7 @@ export default function OutputLaporanClient({ pengajuanList, edisiList, tarif }:
                         marginBottom: 8,
                       }}>
                         <p style={{ fontFamily: "monospace", fontSize: 11, color: "#047857", wordBreak: "break-all", lineHeight: 1.6, margin: 0 }}>
-                          {selectedPengajuan.tandaTanganKaprodi}
+                          {selectedPengajuan.digitalSignature}
                         </p>
                       </div>
                       <p style={{ fontSize: 10, color: "#10b981", fontWeight: 600, margin: 0 }}>
@@ -376,9 +385,9 @@ export default function OutputLaporanClient({ pengajuanList, edisiList, tarif }:
                     </div>
                   </div>
                 )}
-                {selectedPengajuan.status === "DITOLAK" && (
+                {selectedPengajuan.status === "REJECTED" && (
                   <div className="ttd-stamp rejected" style={{ marginTop: 24 }}>
-                    ❌ DITOLAK — {selectedPengajuan.catatanRevisi}
+                    ❌ DITOLAK — {selectedPengajuan.rejectionReason}
                   </div>
                 )}
 
@@ -386,9 +395,9 @@ export default function OutputLaporanClient({ pengajuanList, edisiList, tarif }:
                 <div style={{ marginTop: 16, display: "flex", justifyContent: "center" }}>
                   <span
                     className={`badge ${
-                      selectedPengajuan.status === "DISETUJUI"
+                      selectedPengajuan.status === "APPROVED"
                         ? "badge-success"
-                        : selectedPengajuan.status === "DITOLAK" || selectedPengajuan.status === "REJECTED"
+                        : selectedPengajuan.status === "REJECTED"
                           ? "badge-danger"
                           : "badge-warning"
                     }`}
@@ -399,8 +408,8 @@ export default function OutputLaporanClient({ pengajuanList, edisiList, tarif }:
                 </div>
 
                 {/* Catatan Revisi Kaprodi — shown when rejected */}
-                {(selectedPengajuan.status === "DITOLAK" || selectedPengajuan.status === "REJECTED") &&
-                  selectedPengajuan.catatanRevisi && (
+                {selectedPengajuan.status === "REJECTED" &&
+                  selectedPengajuan.rejectionReason && (
                   <div style={{
                     marginTop: 20,
                     borderLeft: "4px solid #f59e0b",
@@ -434,7 +443,7 @@ export default function OutputLaporanClient({ pengajuanList, edisiList, tarif }:
                       margin: 0,
                       fontStyle: "italic",
                     }}>
-                      &ldquo;{selectedPengajuan.catatanRevisi}&rdquo;
+                      &ldquo;{selectedPengajuan.rejectionReason}&rdquo;
                     </p>
                     <p style={{ fontSize: 11, color: "#b45309", marginTop: 10, marginBottom: 0 }}>
                       ⚠️ Harap lakukan perbaikan sesuai catatan di atas, lalu ajukan kembali melalui tombol <strong>Generate Pengajuan Dana</strong>.
@@ -483,7 +492,7 @@ export default function OutputLaporanClient({ pengajuanList, edisiList, tarif }:
                 <div key={`cert-editor-${editor.id}`} className="certificate-block">
                   <div className="certificate-header">
                     <h3>Surat Keterangan</h3>
-                    <p>No: SK-ED/{selectedEdisi?.tahun}/{selectedEdisi?.volume}/{selectedEdisi?.nomor}</p>
+                    <p>No: SK-ED/{selectedEdisi?.tahun}/{selectedEdisi?.volume}/{selectedEdisi?.no}</p>
                   </div>
                   <div className="certificate-body">
                     <p>Yang bertanda tangan di bawah ini, Ketua Program Studi menerangkan bahwa:</p>
@@ -513,7 +522,7 @@ export default function OutputLaporanClient({ pengajuanList, edisiList, tarif }:
                     </table>
                     <p>
                       Telah melaksanakan tugas sebagai <strong>Editor</strong> pada penerbitan jurnal edisi{" "}
-                      <strong>Vol. {selectedEdisi?.volume} No. {selectedEdisi?.nomor}, {selectedEdisi?.bulan} {selectedEdisi?.tahun}</strong>.
+                      <strong>Vol. {selectedEdisi?.volume} No. {selectedEdisi?.no}, {selectedEdisi?.bulan} {selectedEdisi?.tahun}</strong>.
                     </p>
                     <p>Surat keterangan ini diberikan untuk dapat dipergunakan sebagaimana mestinya.</p>
                   </div>
@@ -531,7 +540,7 @@ export default function OutputLaporanClient({ pengajuanList, edisiList, tarif }:
                 <div key={`cert-reviewer-${reviewer.id}`} className="certificate-block">
                   <div className="certificate-header">
                     <h3>Surat Keterangan</h3>
-                    <p>No: SK-RV/{selectedEdisi?.tahun}/{selectedEdisi?.volume}/{selectedEdisi?.nomor}</p>
+                    <p>No: SK-RV/{selectedEdisi?.tahun}/{selectedEdisi?.volume}/{selectedEdisi?.no}</p>
                   </div>
                   <div className="certificate-body">
                     <p>Yang bertanda tangan di bawah ini, Ketua Program Studi menerangkan bahwa:</p>
@@ -561,7 +570,7 @@ export default function OutputLaporanClient({ pengajuanList, edisiList, tarif }:
                     </table>
                     <p>
                       Telah melaksanakan tugas sebagai <strong>Reviewer</strong> pada penerbitan jurnal edisi{" "}
-                      <strong>Vol. {selectedEdisi?.volume} No. {selectedEdisi?.nomor}, {selectedEdisi?.bulan} {selectedEdisi?.tahun}</strong>.
+                      <strong>Vol. {selectedEdisi?.volume} No. {selectedEdisi?.no}, {selectedEdisi?.bulan} {selectedEdisi?.tahun}</strong>.
                     </p>
                     <p>Surat keterangan ini diberikan untuk dapat dipergunakan sebagaimana mestinya.</p>
                   </div>
@@ -614,23 +623,23 @@ export default function OutputLaporanClient({ pengajuanList, edisiList, tarif }:
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: 15 }}>
-                        Vol. {p.edisiJurnal.volume} No. {p.edisiJurnal.nomor} — {p.edisiJurnal.bulan} {p.edisiJurnal.tahun}
+                        Vol. {p.systemSetting.volume} No. {p.systemSetting.no} — {p.systemSetting.bulan} {p.systemSetting.tahun}
                       </div>
                       <div style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>
-                        {p.edisiJurnal.naskah.length} naskah • Diajukan{" "}
-                        {new Date(p.tanggalPengajuan).toLocaleDateString("id-ID", { dateStyle: "long" })}
+                        {p.systemSetting.naskahJurnals.length} naskah • Diajukan{" "}
+                        {new Date(p.createdAt).toLocaleDateString("id-ID", { dateStyle: "long" })}
                       </div>
                     </div>
                     <span
                       className={`badge ${
-                        p.status === "DISETUJUI"
+                        p.status === "APPROVED"
                           ? "badge-success"
-                          : p.status === "DITOLAK"
+                          : p.status === "REJECTED"
                             ? "badge-danger"
                             : "badge-warning"
                       }`}
                     >
-                      {p.status === "DISETUJUI" ? "✅" : p.status === "DITOLAK" ? "❌" : "⏳"} {p.status}
+                      {p.status === "APPROVED" ? "✅" : p.status === "REJECTED" ? "❌" : "⏳"} {p.status}
                     </span>
                   </div>
 
@@ -642,7 +651,7 @@ export default function OutputLaporanClient({ pengajuanList, edisiList, tarif }:
                     <div style={{ padding: 12, background: "#fef2f2", borderRadius: 8, textAlign: "center" }}>
                       <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>Pajak</div>
                       <div style={{ fontWeight: 700, fontSize: 15, color: "#dc2626" }}>
-                        - {formatRupiah(p.totalPotonganPajak)}
+                        - {formatRupiah(p.totalTax)}
                       </div>
                     </div>
                     <div style={{ padding: 12, background: "#ecfdf5", borderRadius: 8, textAlign: "center" }}>
@@ -654,15 +663,15 @@ export default function OutputLaporanClient({ pengajuanList, edisiList, tarif }:
                   </div>
 
                   {/* Approval Stamp Display */}
-                  {p.status === "DISETUJUI" && p.tandaTanganKaprodi && (
+                  {p.status === "APPROVED" && p.digitalSignature && (
                     <div className="ttd-stamp" style={{ marginBottom: 16 }}>
-                      ✅ {p.tandaTanganKaprodi}
+                      ✅ {p.digitalSignature}
                     </div>
                   )}
 
-                  {p.status === "DITOLAK" && p.catatanRevisi && (
+                  {p.status === "REJECTED" && p.rejectionReason && (
                     <div className="ttd-stamp rejected" style={{ marginBottom: 16 }}>
-                      ❌ Ditolak — {p.catatanRevisi}
+                      ❌ Ditolak — {p.rejectionReason}
                     </div>
                   )}
 
@@ -723,7 +732,7 @@ export default function OutputLaporanClient({ pengajuanList, edisiList, tarif }:
                   )}
 
                   {/* Re-approve/reject for already decided */}
-                  {(p.status === "DISETUJUI" || p.status === "DITOLAK") && (
+                  {(p.status === "APPROVED" || p.status === "REJECTED") && (
                     <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 8 }}>
                       Pengajuan ini sudah diproses. Generate ulang dari tab Surat untuk mereset status.
                     </div>

@@ -1,29 +1,15 @@
 import {
   getAllPengajuan,
-  getEdisiJurnalList,
-  getPengaturanTarif,
+  getSystemSettingList,
 } from "@/app/actions";
 import { prisma } from "@/app/lib/prisma";
 import OutputLaporanClient from "@/app/components/OutputLaporanClient";
 
 export default async function OutputLaporanPage() {
-  const [pengajuanList, tarif] = await Promise.all([
+  const [pengajuanList, systemSettingList] = await Promise.all([
     getAllPengajuan(),
-    getPengaturanTarif(),
+    getSystemSettingList(),
   ]);
-
-  // Fetch all edisi with full naskah + editor + reviewer data for certificates
-  const edisiList = await prisma.edisiJurnal.findMany({
-    orderBy: { createdAt: "desc" },
-    include: {
-      naskah: {
-        include: {
-          editor: true,
-          reviewer: true,
-        },
-      },
-    },
-  });
 
   return (
     <div className="animate-fade-in">
@@ -34,8 +20,7 @@ export default async function OutputLaporanPage() {
 
       <OutputLaporanClient
         pengajuanList={JSON.parse(JSON.stringify(pengajuanList))}
-        edisiList={JSON.parse(JSON.stringify(edisiList))}
-        tarif={tarif ? JSON.parse(JSON.stringify(tarif)) : null}
+        edisiList={JSON.parse(JSON.stringify(systemSettingList))}
       />
     </div>
   );

@@ -4,45 +4,28 @@ import { prisma } from "@/app/lib/prisma";
 export async function POST() {
   try {
     // Basic fallback seeding for demo purposes
-    let tarif = await prisma.pengaturanTarif.findFirst();
-    if (!tarif) {
-      tarif = await prisma.pengaturanTarif.create({
-        data: {
-          honorEditor: 250000,
-          honorReviewer: 300000,
-          persentasePajak: 2.5,
-        },
-      });
-    }
-
-    let edisiAktif = await prisma.edisiJurnal.findFirst({ where: { isAktif: true } });
+    let edisiAktif = await prisma.systemSetting.findFirst({ where: { isActive: true } });
     if (!edisiAktif) {
-      edisiAktif = await prisma.edisiJurnal.create({
+      edisiAktif = await prisma.systemSetting.create({
         data: {
           volume: 9,
-          nomor: 2,
+          no: 2,
           bulan: "April",
           tahun: 2026,
-          isAktif: true,
+          isActive: true,
+          honorEditor: 250000,
+          honorReviewer: 300000,
+          taxRate: 2.5
         },
       });
     }
 
-    let kaprodi = await prisma.user.findUnique({ where: { username: "kaprodi.if" } });
-    if (!kaprodi) {
-      await prisma.user.create({
-        data: {
-          username: "kaprodi.if",
-          password: "kaprodi123",
-          nama: "Prof. Dr. Ir. Eddy Soeryanto Soegoto, M.T.",
-          role: "KAPRODI",
-        },
-      });
-    }
+    // Skip Kaprodi user check as User model might not exist depending on the schema (if it does, we can leave it or remove it). Wait, the User model isn't in schema.prisma!
+    // I will remove the kaprodi user creation.
 
     // Check if pengajuan already exists
     const existingPengajuan = await prisma.pengajuanDana.findUnique({
-      where: { edisiId: edisiAktif.id }
+      where: { systemSettingId: edisiAktif.id }
     });
 
     if (!existingPengajuan) {
@@ -52,9 +35,9 @@ export async function POST() {
 
       await prisma.pengajuanDana.create({
         data: {
-          edisiId: edisiAktif.id,
+          systemSettingId: edisiAktif.id,
           totalHonorBruto: bruto,
-          totalPotonganPajak: pajakTotal,
+          totalTax: pajakTotal,
           totalHonorNetto: netto,
           status: "PENDING",
         },
