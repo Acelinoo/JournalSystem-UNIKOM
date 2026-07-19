@@ -6,6 +6,8 @@ import {
   approvePengajuan,
   rejectPengajuan,
 } from "@/app/actions";
+import { useRef } from "react";
+import { useReactToPrint } from "react-to-print";
 
 interface SystemSetting {
   id: string;
@@ -55,6 +57,19 @@ export default function OutputLaporanClient({ pengajuanList, edisiList }: Props)
 
   const selectedEdisi = edisiList.find((e) => e.id === selectedEdisiId);
   const selectedPengajuan = pengajuanList.find((p) => p.systemSettingId === selectedEdisiId);
+
+  const suratRef = useRef<HTMLDivElement>(null);
+  const sertifikatRef = useRef<HTMLDivElement>(null);
+
+  const handlePrintSurat = useReactToPrint({
+    contentRef: suratRef,
+    documentTitle: selectedPengajuan ? `Surat_Pengajuan_Dana_Vol${selectedPengajuan.systemSetting.volume}_No${selectedPengajuan.systemSetting.no}_${selectedPengajuan.systemSetting.tahun}` : "Surat_Pengajuan_Dana",
+  });
+
+  const handlePrintSertifikat = useReactToPrint({
+    contentRef: sertifikatRef,
+    documentTitle: selectedEdisi ? `Sertifikat_Editor_Reviewer_Vol${selectedEdisi.volume}_No${selectedEdisi.no}_${selectedEdisi.tahun}` : "Sertifikat",
+  });
 
   // Collect unique editors/reviewers from the selected edition
   const editorMap = new Map<string, typeof selectedEdisi extends undefined ? never : NonNullable<typeof selectedEdisi>["naskahJurnals"][0]["editor"]>();
@@ -196,8 +211,8 @@ export default function OutputLaporanClient({ pengajuanList, edisiList }: Props)
           {selectedPengajuan ? (
             <div>
               <div className="no-print" style={{ marginBottom: 16, display: "flex", justifyContent: "flex-end", gap: 10 }}>
-                <button className="btn btn-secondary" onClick={() => window.print()}>
-                  🖨️ Cetak Surat
+                <button className="btn btn-secondary" onClick={() => handlePrintSurat()}>
+                  🖨️ Download PDF / Cetak Surat
                 </button>
                 {selectedPengajuan.status === "DISETUJUI" && (
                   <button
@@ -212,12 +227,7 @@ export default function OutputLaporanClient({ pengajuanList, edisiList }: Props)
                       border: "none",
                       boxShadow: "0 2px 8px rgba(5,150,105,0.3)",
                     }}
-                    onClick={() => {
-                      const originalTitle = document.title;
-                      document.title = `Laporan_Resmi_Vol${selectedPengajuan.systemSetting.volume}_No${selectedPengajuan.systemSetting.no}_${selectedPengajuan.systemSetting.tahun}`;
-                      window.print();
-                      setTimeout(() => { document.title = originalTitle; }, 1000);
-                    }}
+                    onClick={() => handlePrintSurat()}
                   >
                     <svg style={{ width: 16, height: 16 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
@@ -227,7 +237,7 @@ export default function OutputLaporanClient({ pengajuanList, edisiList }: Props)
                   </button>
                 )}
               </div>
-              <div className="surat-container print-area">
+              <div className="surat-container print-area" ref={suratRef}>
                 <div className="surat-kop" style={{ color: "#0a192f" }}>
                   <h2 style={{ color: "#0a192f" }}>Universitas Komputer Indonesia (UNIKOM)</h2>
                   <h3 style={{ color: "#0a192f" }}>Fakultas Ilmu Komputer</h3>
@@ -474,8 +484,8 @@ export default function OutputLaporanClient({ pengajuanList, edisiList }: Props)
       {activeTab === "sertifikat" && (
         <div className="animate-fade-in">
           <div className="no-print" style={{ marginBottom: 16, display: "flex", justifyContent: "flex-end" }}>
-            <button className="btn btn-secondary" onClick={() => window.print()}>
-              🖨️ Cetak Semua Sertifikat
+            <button className="btn btn-secondary" onClick={() => handlePrintSertifikat()}>
+              🖨️ Download PDF / Cetak Semua Sertifikat
             </button>
           </div>
 
@@ -486,7 +496,7 @@ export default function OutputLaporanClient({ pengajuanList, edisiList }: Props)
               </div>
             </div>
           ) : (
-            <div className="print-area">
+            <div className="print-area" ref={sertifikatRef}>
               {/* Editor Certificates */}
               {Array.from(editorMap.values()).map((editor) => (
                 <div key={`cert-editor-${editor.id}`} className="certificate-block">
@@ -522,7 +532,7 @@ export default function OutputLaporanClient({ pengajuanList, edisiList }: Props)
                     </table>
                     <p>
                       Telah melaksanakan tugas sebagai <strong>Editor</strong> pada penerbitan jurnal edisi{" "}
-                      <strong>Vol. {selectedEdisi?.volume} No. {selectedEdisi?.no}, {selectedEdisi?.bulan} {selectedEdisi?.tahun}</strong>.
+                      <strong>Volume (Vol.) {selectedEdisi?.volume}, Nomor (No.) {selectedEdisi?.no}, {selectedEdisi?.bulan} {selectedEdisi?.tahun}</strong>.
                     </p>
                     <p>Surat keterangan ini diberikan untuk dapat dipergunakan sebagaimana mestinya.</p>
                   </div>
@@ -570,7 +580,7 @@ export default function OutputLaporanClient({ pengajuanList, edisiList }: Props)
                     </table>
                     <p>
                       Telah melaksanakan tugas sebagai <strong>Reviewer</strong> pada penerbitan jurnal edisi{" "}
-                      <strong>Vol. {selectedEdisi?.volume} No. {selectedEdisi?.no}, {selectedEdisi?.bulan} {selectedEdisi?.tahun}</strong>.
+                      <strong>Volume (Vol.) {selectedEdisi?.volume}, Nomor (No.) {selectedEdisi?.no}, {selectedEdisi?.bulan} {selectedEdisi?.tahun}</strong>.
                     </p>
                     <p>Surat keterangan ini diberikan untuk dapat dipergunakan sebagaimana mestinya.</p>
                   </div>
